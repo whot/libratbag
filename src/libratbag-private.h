@@ -60,6 +60,8 @@ struct ratbag_device {
 	const char *svg_name;
 	void *userdata;
 
+	/* user-supplied udev_device, may be the event node or the hidraw
+	 * device */
 	struct udev_device *udev_device;
 	struct udev_device *udev_hidraw;
 	int hidraw_fd;

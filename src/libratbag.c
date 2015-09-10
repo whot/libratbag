@@ -448,11 +448,16 @@ get_device_name(struct udev_device *device)
 	const char *prop;
 
 	prop = udev_prop_value(device, "NAME");
-	if (!prop)
-		return NULL;
+	if (prop) {
+		/* udev name is inclosed by " */
+		return strndup(&prop[1], strlen(prop) - 2);
+	}
 
-	/* udev name is inclosed by " */
-	return strndup(&prop[1], strlen(prop) - 2);
+	prop = udev_prop_value(device, "HID_NAME");
+	if (prop)
+		return strdup(prop);
+
+	return NULL;
 }
 
 static inline int
@@ -468,8 +473,24 @@ get_product_id(struct udev_device *device, struct input_id *id)
 
 	rc = sscanf(product, "%hx/%hx/%hx/%hx", &ids.bustype,
 		    &ids.vendor, &ids.product, &ids.version);
-	if (rc != 4)
+	if (rc < 3)
 		return -1;
+
+	if (rc == 3) { /* hidraw nodes have a 3-part PRODUCT */
+		const char *bustype;
+
+		ids.version = ids.product;
+		ids.product = ids.vendor;
+		ids.vendor = ids.bustype;
+
+		bustype = udev_prop_value(device, "ID_BUS");
+		if (streq(bustype, "usb"))
+			ids.bustype = BUS_USB;
+		else if (streq(bustype, "bluetooth"))
+			ids.bustype = BUS_BLUETOOTH;
+		else
+			return -1;
+	}
 
 	*id = ids;
 	return 0;

@@ -27,10 +27,12 @@ struct udev_device*
 udev_device_from_path(struct udev *udev, const char *path)
 {
 	struct udev_device *udev_device;
-	const char *event_node_prefix = "/dev/input/event";
+	const char *event_node_prefix = "/dev/input/event",
+		   *hidraw_prefix = "/dev/hidraw";
 
-	if (strneq(path, event_node_prefix, strlen(event_node_prefix))) {
-		struct stat st;
+	if (strneq(path, event_node_prefix, strlen(event_node_prefix)) ||
+	    strneq(path, hidraw_prefix, strlen(hidraw_prefix))) {
+	    struct stat st;
 		if (stat(path, &st) == -1) {
 			error("Failed to stat '%s': %s\n", path, strerror(errno));
 			return NULL;
