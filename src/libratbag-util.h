@@ -102,6 +102,8 @@ cleanup_udev_device_unref(struct udev_device **udev_device) {
 #define _cleanup_udev_unref_ _cleanup_(cleanup_udev_unref)
 #define _cleanup_udev_device_unref_ _cleanup_(cleanup_udev_device_unref)
 
+#define _unused_ __attribute__((unused))
+
 static inline char*
 strncpy_safe(char *dest, const char *src, size_t n)
 {

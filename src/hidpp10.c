@@ -918,16 +918,79 @@ hidpp10_get_optical_sensor_settings(struct hidpp10_device *dev,
 	} \
 }
 
-int
-hidpp10_get_current_resolution(struct hidpp10_device *dev,
-			       uint16_t *xres,
-			       uint16_t *yres)
+static int
+hidpp10_get_current_resolution_scheme1(struct hidpp10_device *dev,
+				       uint16_t *xres,
+				       uint16_t *yres)
+{
+	unsigned idx = dev->index;
+	union hidpp10_message resolution = CMD_CURRENT_RESOLUTION(REPORT_ID_SHORT, idx, GET_REGISTER_REQ);
+	int res;
+	int framerate _unused_;
+	int angle _unused_;
+
+	res = hidpp10_request_command(dev, &resolution);
+	if (res)
+		return res;
+
+	switch(resolution.msg.parameters[0]) {
+	case 0x00: /* no change (only on write) */
+	case 0x01:	*xres = 50;	break;
+	case 0x02:	*xres = 100;	break;
+	case 0x03:	*xres = 200;	break;
+	case 0x04:	*xres = 400;	break;
+	case 0x05:	*xres = 800;	break;
+	case 0x06:	*xres = 1000;	break;
+	case 0x07:	*xres = 1200;	break;
+	case 0x08:	*xres = 1400;	break;
+	case 0x09:	*xres = 1600;	break;
+	case 0x0A:	*xres = 1800;	break;
+	case 0x0B:	*xres = 2000;	break;
+	case 0x0C ... 0x7F: /* reserved */
+		abort();
+		break;
+
+	/* I don't think these will ever happen on a get request.
+	 * 0x80 is "lowest native res", 0x81 is "second-lowest native res",
+	 * etc.  until 0xFF for "highest res". Pretty sure this only works
+	 * in a set request, so we can ignore them here.*/
+	case 0x80 ... 0xFF:
+		  abort();
+		  break;
+	}
+
+	*yres = *xres;
+
+	switch(resolution.msg.parameters[1]) {
+	case 0x00: /* no change (only on write) */
+	case 0x01:	framerate = 1000;	break;
+	case 0x02:	framerate = 1500;	break;
+	case 0x03:	framerate = 2000;	break;
+	case 0x04:	framerate = 2500;	break;
+	case 0x05:	framerate = 3000;	break;
+	case 0x0C ... 0x7F: /* reserved */
+		abort();
+		break;
+	case 0x80 ... 0xFF: /* see comment above */
+		abort();
+		break;
+	}
+
+	angle = 0x80 - resolution.msg.parameters[2]; /* in deg */
+
+	return 0;
+}
+
+static int
+hidpp10_get_current_resolution_scheme3(struct hidpp10_device *dev,
+				       uint16_t *xres,
+				       uint16_t *yres)
 {
 	unsigned idx = dev->index;
 	union hidpp10_message resolution = CMD_CURRENT_RESOLUTION(REPORT_ID_SHORT, idx, GET_LONG_REGISTER_REQ);
 	int res;
-
-	log_raw(dev->ratbag_device->ratbag, "Fetching current resolution\n");
+	int angle _unused_;
+	bool angle_snap _unused_;
 
 	res = hidpp10_request_command(dev, &resolution);
 	if (res)
@@ -937,13 +1000,91 @@ hidpp10_get_current_resolution(struct hidpp10_device *dev,
 	*xres = hidpp10_get_unaligned_u16le(&resolution.data[4]) * 50;
 	*yres = hidpp10_get_unaligned_u16le(&resolution.data[6]) * 50;
 
+	angle = 0x80 - resolution.data[8]; /* in deg */
+	switch (resolution.data[9]) {
+	default: /* reserved */
+	case 0x00: /* no change (only on write) */
+	case 0x01: /* disabled */
+		angle_snap = false;
+		break;
+	case 0x02: /* enabled */
+		angle_snap = true;
+		break;
+	}
+
 	return 0;
 }
 
 int
-hidpp10_set_current_resolution(struct hidpp10_device *dev,
-			       uint16_t xres,
-			       uint16_t yres)
+hidpp10_get_current_resolution(struct hidpp10_device *dev,
+			       uint16_t *xres,
+			       uint16_t *yres)
+{
+	int res;
+
+	log_raw(dev->ratbag_device->ratbag, "Fetching current resolution\n");
+
+	res = hidpp10_get_current_resolution_scheme1(dev, xres, yres);
+	if (res == 0)
+		return 0;
+
+	/* scheme1 and scheme2 are identical messages but different content.
+	 * we don't know yet how to differentiate between the data returned, but the
+	 * resolution is identical in both, so we skip it here */
+	res = hidpp10_get_current_resolution_scheme3(dev, xres, yres);
+
+	return res;
+}
+
+static int
+hidpp10_set_current_resolution_scheme1(struct hidpp10_device *dev,
+				       uint16_t xres,
+				       uint16_t yres)
+{
+	unsigned idx = dev->index;
+	union hidpp10_message resolution = CMD_CURRENT_RESOLUTION(REPORT_ID_LONG, idx, SET_REGISTER_REQ);
+	int r;
+
+	/* we silently use the closest and ignore yres */
+	if (xres < 75)
+		r = 0x01; /* 50dpi */
+	else if (xres < 150)
+		r = 0x02; /* 100dpi */
+	else if (xres < 300)
+		r = 0x03; /* 200 dpi */
+	else if (xres < 600)
+		r = 0x04; /* 400dpi */
+	else if (xres < 900)
+		r = 0x05; /* 800dpi */
+	else if (xres < 1100)
+		r = 0x06; /* 1000dpi */
+	else if (xres < 1300)
+		r = 0x07; /* 1200dpi */
+	else if (xres < 1500)
+		r = 0x08; /* 1400dpi */
+	else if (xres < 1700)
+		r = 0x09; /* 1600dpi */
+	else if (xres < 1900)
+		r = 0x0A; /* 1800dpi */
+	else if (xres < 1900)
+		r = 0x0A; /* 1800dpi */
+	else if (xres < 2100)
+		r = 0x0B; /* 2000dpi */
+	else
+		/* FIXME: what do we return for out-of-range? */
+		r = 0x0B; /* use 2000dpi anyway */
+
+	resolution.msg.parameters[0] = r;
+	resolution.msg.parameters[1] = 0x00; /* frame rate - no change */
+	resolution.msg.parameters[2] = 0x00; /* angle - no change */
+
+	return hidpp10_request_command(dev, &resolution);
+}
+
+static int
+hidpp10_set_current_resolution_scheme3(struct hidpp10_device *dev,
+				       uint16_t xres,
+				       uint16_t yres)
 {
 	unsigned idx = dev->index;
 	union hidpp10_message resolution = CMD_CURRENT_RESOLUTION(REPORT_ID_LONG, idx, SET_LONG_REGISTER_REQ);
@@ -952,6 +1093,21 @@ hidpp10_set_current_resolution(struct hidpp10_device *dev,
 	hidpp10_set_unaligned_u16le(&resolution.data[6], yres / 50);
 
 	return hidpp10_request_command(dev, &resolution);
+}
+
+int
+hidpp10_set_current_resolution(struct hidpp10_device *dev,
+			       uint16_t xres,
+			       uint16_t yres)
+{
+	int res;
+
+	res = hidpp10_set_current_resolution_scheme1(dev, xres, yres);
+	if (res == 0)
+		return 0;
+
+	res = hidpp10_set_current_resolution_scheme3(dev, xres, yres);
+	return res;
 }
 
 /* -------------------------------------------------------------------------- */
