@@ -93,6 +93,21 @@ hidpp10drv_write_button(struct ratbag_button *button,
 }
 
 static int
+hidpp10drv_write_resolution_dpi(struct ratbag_resolution *resolution,
+				int dpi_x, int dpi_y)
+{
+	struct ratbag_profile *profile = resolution->profile;
+	struct ratbag_device *device = profile->device;
+	struct hidpp10drv_data *drv_data;
+	struct hidpp10_device *hidpp10;
+
+	drv_data = ratbag_get_drv_data(device);
+	hidpp10 = drv_data->dev;
+
+	return hidpp10_set_current_resolution(hidpp10, dpi_x, dpi_y);
+}
+
+static int
 hidpp10drv_has_capability(const struct ratbag_device *device,
 			  enum ratbag_device_capability cap)
 {
@@ -284,4 +299,5 @@ struct ratbag_driver hidpp10_driver = {
 	.has_capability = hidpp10drv_has_capability,
 	.read_button = hidpp10drv_read_button,
 	.write_button = hidpp10drv_write_button,
+	.write_resolution_dpi = hidpp10drv_write_resolution_dpi,
 };
