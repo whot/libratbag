@@ -1483,6 +1483,8 @@ hidpp10_get_device_info(struct hidpp10_device *dev)
 	uint8_t f1, f2;
 	uint8_t reflect;
 	int i;
+	int count;
+	struct hidpp10_directory directory[16];
 
 	hidpp10_get_individual_features(dev, &f1, &f2);
 	hidpp10_get_hidpp_notifications(dev, &f1, &f2);
@@ -1495,7 +1497,9 @@ hidpp10_get_device_info(struct hidpp10_device *dev)
 
 	hidpp10_get_current_profile(dev, &dev->current_profile);
 
-	for (i = 0; i < HIDPP10_NUM_PROFILES; i++)
+	count = hidpp10_get_profile_directory(dev, directory,
+					      ARRAY_LENGTH(directory));
+	for (i = 0; i < count; i++)
 		hidpp10_get_profile(dev, i, &dev->profiles[i]);
 
 	return 0;
