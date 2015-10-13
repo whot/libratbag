@@ -509,11 +509,34 @@ union _hidpp10_profile_data {
 };
 _Static_assert((sizeof(union _hidpp10_profile_data) % 16) == 0, "Invalid size");
 
-struct hidpp10_directory {
-	uint8_t page;
-	uint8_t offset;
-	uint8_t led_mask;
-} __attribute__((packed));
+int
+hidpp10_get_profile_directory(struct hidpp10_device *dev,
+			      struct hidpp10_directory *out,
+			      size_t nelems)
+{
+	unsigned int i;
+	int res;
+	struct hidpp10_directory directory[16]; /* assume 16 profiles max */
+	size_t count;
+
+	for (i = 0; i < sizeof(directory); i += 16) {
+		res = hidpp10_read_memory(dev, 0x01, i, (uint8_t *)directory + i);
+		if (res)
+			return res;
+	}
+
+	count = 0;
+	for (i = 0; i < ARRAY_LENGTH(directory); i++) {
+		if (directory[i].page == 0xFF)
+			break;
+		count++;
+	}
+
+	count = min(count, nelems);
+	memcpy(out, directory, count  * sizeof(out[0]));
+
+	return count;
+}
 
 int
 hidpp10_get_current_profile(struct hidpp10_device *dev, int8_t *current_profile)
@@ -524,26 +547,14 @@ hidpp10_get_current_profile(struct hidpp10_device *dev, int8_t *current_profile)
 	unsigned i;
 	int8_t type, page, offset;
 	struct hidpp10_directory directory[16]; /* completely random profile count */
-	int ndirentries = 0;
+	int count = 0;
 
 	log_raw(dev->ratbag_device->ratbag, "Fetching the profiles' directory\n");
 
-	offset = 0;
-	for (i = 0; i < sizeof(directory); i += 16) {
-		res = hidpp10_read_memory(dev, 0x01, i, (uint8_t *)directory + i);
-		if (res)
-			return res;
-	}
-
-	for (i = 0; i < ARRAY_LENGTH(directory); i++) {
-		if (directory[i].page == 0xFF)
-			break;
-
-		log_raw(dev->ratbag_device->ratbag,
-			"Profile directory: %d on page:offset %d:%d\n",
-			i, directory[i].page, directory[i].offset);
-		ndirentries++;
-	}
+	count = hidpp10_get_profile_directory(dev, directory,
+					    ARRAY_LENGTH(directory));
+	if (count < 0)
+		return count;
 
 	log_raw(dev->ratbag_device->ratbag, "Fetching current profile\n");
 
