@@ -524,6 +524,7 @@ hidpp10_get_current_profile(struct hidpp10_device *dev, int8_t *current_profile)
 	unsigned i;
 	int8_t type, page, offset;
 	struct hidpp10_directory directory[16]; /* completely random profile count */
+	int ndirentries = 0;
 
 	log_raw(dev->ratbag_device->ratbag, "Fetching the profiles' directory\n");
 
@@ -532,6 +533,16 @@ hidpp10_get_current_profile(struct hidpp10_device *dev, int8_t *current_profile)
 		res = hidpp10_read_memory(dev, 0x01, i, (uint8_t *)directory + i);
 		if (res)
 			return res;
+	}
+
+	for (i = 0; i < ARRAY_LENGTH(directory); i++) {
+		if (directory[i].page == 0xFF)
+			break;
+
+		log_raw(dev->ratbag_device->ratbag,
+			"Profile directory: %d on page:offset %d:%d\n",
+			i, directory[i].page, directory[i].offset);
+		ndirentries++;
 	}
 
 	log_raw(dev->ratbag_device->ratbag, "Fetching current profile\n");
@@ -545,6 +556,10 @@ hidpp10_get_current_profile(struct hidpp10_device *dev, int8_t *current_profile)
 	switch (type) {
 	case PROFILE_TYPE_INDEX:
 		*current_profile = page;
+		/* If the profile exceeds the directory length, default to
+		 * the first */
+		if (*current_profile > count)
+			*current_profile = 0;
 		return 0;
 	case PROFILE_TYPE_ADDRESS:
 		offset = profile.msg.parameters[2];
