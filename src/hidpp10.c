@@ -603,18 +603,36 @@ hidpp10_get_profile(struct hidpp10_device *dev, int8_t number, struct hidpp10_pr
 	size_t i;
 	int res;
 	struct hidpp10_profile profile;
+	struct hidpp10_directory directory[16]; /* completely random profile count */
+	int count = 0;
+	uint8_t page;
 
 	/* Page 0 is RAM
 	 * Page 1 is the profile directory
 	 * Page 2-31 are Flash
-	 * -> profiles are stored in the Flash */
-	number += 2;
+	 * -> profiles are stored in the Flash
+	 *
+	 * For now we assume that number refers to the index in the profile
+	 * directory.
+	 */
 
 	log_raw(dev->ratbag_device->ratbag, "Fetching profile %d\n", number);
 
+	count = hidpp10_get_profile_directory(dev, directory,
+					    ARRAY_LENGTH(directory));
+	if (count < 0)
+		return count;
+
+	if (number >= count) {
+		log_bug_libratbag(ratbag, "Profile number %d not in the directory.\n", number);
+		return -EINVAL;
+	}
+
+	page = directory[number].page;
+
 	for (i = 0; i < sizeof(data); i += 16) {
 		/* each sector contains 16 bytes of data */
-		res = hidpp10_read_memory(dev, number, i / 2,  &data.data[i]);
+		res = hidpp10_read_memory(dev, page, i / 2,  &data.data[i]);
 		if (res)
 			return res;
 	}
