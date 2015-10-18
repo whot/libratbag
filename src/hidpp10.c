@@ -996,6 +996,117 @@ hidpp10_set_usb_refresh_rate(struct hidpp10_device *dev,
 }
 
 /* -------------------------------------------------------------------------- */
+/* 0xA0: Generic Memory Management                                            */
+/* -------------------------------------------------------------------------- */
+#define __CMD_MEMORY_MANAGEMENT			0xA0
+
+#define CMD_MEMORY_MANAGEMENT(idx) { \
+	.memop = { \
+		.report_id = REPORT_ID_LONG, \
+		.device_idx = idx, \
+		.sub_id = SET_LONG_REGISTER_REQ, \
+		.address = __CMD_MEMORY_MANAGEMENT, \
+	} \
+}
+
+enum hidpp10_memory_operations {
+	HIDPP10_MEMORY_OP_NOOP = 0x00,
+	/**
+	 * Process LCD batch command in src
+	 *
+	 * args used: src
+	 */
+	HIDPP10_MEMORY_OP_EXECUTE = 0x01,
+	/**
+	 * Erase flash location
+	 *
+	 * args: dst (offset ignored)
+	 */
+	HIDPP10_MEMORY_OP_ERASE = 0x02,
+	/**
+	 * Copy memory from RAM to flash. src must be RAM, dst must be a
+	 * Flash page.
+	 *
+	 * args: src, dst, size
+	 */
+	HIDPP10_MEMORY_OP_WRITE_FLASH = 0x03,
+	/**
+	 * Copy CRC of all modifiable sectors to dst. CRC for RAM is always
+	 * 0.
+	 *
+	 * args: dst
+	 */
+	HIDPP10_MEMORY_OP_GET_FLASH_CRC = 0x04,
+	/**
+	 * Link display commands in src to a display mode.
+	 *
+	 * args: src, displaymode
+	 */
+	HIDPP10_MEMORY_OP_LINK = 0x05,
+	/**
+	 * Unlink previously set commands
+	 *
+	 * args: displaymode
+	 */
+	HIDPP10_MEMORY_OP_UNLINK = 0x06,
+	/**
+	 * Prevent new display commands. While on hold, new display commands aren't processed.
+	 *
+	 * args: displaymode
+	 */
+	HIDPP10_MEMORY_OP_HOLD = 0x07,
+	/**
+	 * Remove hold on the display mode.
+	 *
+	 * args: displaymode
+	 */
+	HIDPP10_MEMORY_OP_UNHOLD = 0x08,
+};
+
+struct _hidpp10_memory_op {
+	uint8_t report_id;
+	uint8_t device_idx;
+	uint8_t sub_id;
+	uint8_t address;
+	uint8_t op;
+	uint8_t pad0;
+	uint8_t src_page;
+	uint8_t src_offset;
+	uint16_t pad1;
+	uint8_t dst_page;
+	uint8_t dst_offset;
+	uint16_t pad2;
+	uint16_t size; /* big endian */
+	uint16_t pad3;
+	uint8_t display_mode;
+	uint8_t pad4;
+} __attribute__((packed));
+_Static_assert(sizeof(struct _hidpp10_memory_op) == 20, "Invalid size");
+
+union hidpp10_memory_op {
+	union hidpp10_message msg;
+	struct _hidpp10_memory_op memop;
+};
+
+int
+hidpp10_memory_erase(struct hidpp10_device *dev, uint8_t page)
+{
+	unsigned idx = dev->index;
+	union hidpp10_memory_op mem = CMD_MEMORY_MANAGEMENT(idx);
+	int res;
+
+	if (page > HIDPP10_MAX_PAGE_NUMBER)
+		return -EINVAL;
+
+	mem.memop.op = HIDPP10_MEMORY_OP_ERASE;
+	mem.memop.dst_page = page;
+	hidpp_log_raw(&dev->base, "Erasing page %d\n", page);
+
+	res = hidpp10_request_command(dev, &mem.msg);
+	return res;
+}
+
+/* -------------------------------------------------------------------------- */
 /* 0xA2: Read Sector                                                          */
 /* -------------------------------------------------------------------------- */
 #define __CMD_READ_MEMORY			0xA2
