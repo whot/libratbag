@@ -88,6 +88,13 @@ hidpp10_set_unaligned_u16le(uint8_t *buf, uint16_t value)
 	buf[1] = value >> 8;
 }
 
+static inline void
+hidpp10_set_unaligned_u16be(uint8_t *buf, uint16_t value)
+{
+	buf[0] = value >> 8;
+	buf[1] = value & 0xFF;
+}
+
 const char *device_types[0xFF] = {
 	[0x00] = "Unknown",
 	[0x01] = "Keyboard",
@@ -1101,6 +1108,39 @@ hidpp10_memory_erase(struct hidpp10_device *dev, uint8_t page)
 	mem.memop.op = HIDPP10_MEMORY_OP_ERASE;
 	mem.memop.dst_page = page;
 	hidpp_log_raw(&dev->base, "Erasing page %d\n", page);
+
+	res = hidpp10_request_command(dev, &mem.msg);
+	return res;
+}
+
+int
+hidpp10_memory_write_flash(struct hidpp10_device *dev,
+			   uint8_t src_page, uint16_t src_offset,
+			   uint8_t dst_page, uint16_t dst_offset,
+			   size_t size)
+{
+	unsigned idx = dev->index;
+	union hidpp10_memory_op mem = CMD_MEMORY_MANAGEMENT(idx);
+	int res;
+
+	if (src_page > HIDPP10_MAX_PAGE_NUMBER ||
+	    dst_page > HIDPP10_MAX_PAGE_NUMBER)
+		return -EINVAL;
+
+	if (src_offset % 2 != 0 || dst_offset % 2 != 0) {
+		hidpp_log_error(&dev->base, "Reading/writing memory with odd offset is not supported.\n");
+		return -EINVAL;
+	}
+
+	mem.memop.op = HIDPP10_MEMORY_OP_ERASE;
+	mem.memop.src_page = src_page;
+	mem.memop.src_offset = src_offset;
+	mem.memop.dst_page = dst_page;
+	mem.memop.dst_offset = dst_offset;
+	hidpp10_set_unaligned_u16be((uint8_t*)&mem.memop.size, size);
+
+	hidpp_log_raw(&dev->base, "Writing flash %d %#x -> %d %#x (size %zd)\n",
+		      src_page, src_offset, dst_page, dst_offset, size);
 
 	res = hidpp10_request_command(dev, &mem.msg);
 	return res;

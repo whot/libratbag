@@ -465,6 +465,16 @@ hidpp10_set_usb_refresh_rate(struct hidpp10_device *dev,
 int
 hidpp10_memory_erase(struct hidpp10_device *dev, uint8_t page);
 
+/**
+ * Copy src (RAM pages only) to dst (Flash memory pages only).
+ * You must call hidpp10_memory_erase() on dst before issuing this call.
+ */
+int
+hidpp10_memory_write_flash(struct hidpp10_device *dev,
+			   uint8_t src_page, uint16_t src_offset,
+			   uint8_t dst_page, uint16_t dst_offset,
+			   size_t size);
+
 /* -------------------------------------------------------------------------- */
 /* 0xA2: Read Sector                                                          */
 /* -------------------------------------------------------------------------- */
