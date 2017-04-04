@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['resolution_20and_20frequency_20mappings',['Resolution and frequency mappings',['../group__resolution.html',1,'']]]
+  ['querying_20and_20manipulating_20devices',['Querying and manipulating devices',['../group__device.html',1,'']]]
 ];

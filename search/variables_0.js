@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['close_5frestricted',['close_restricted',['../structratbag__interface.html#a5ccac29e0114151d12aba7f4acb82491',1,'ratbag_interface']]]
+  ['blue',['blue',['../structratbag__color.html#ab83a445c8fcb5da4b3a6d30f22973732',1,'ratbag_color']]]
 ];

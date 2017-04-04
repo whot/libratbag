@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['open_5frestricted',['open_restricted',['../structratbag__interface.html#a7625875340ab631722a6717a975d02bd',1,'ratbag_interface']]]
+  ['close_5frestricted',['close_restricted',['../structratbag__interface.html#a5ccac29e0114151d12aba7f4acb82491',1,'ratbag_interface']]]
 ];
