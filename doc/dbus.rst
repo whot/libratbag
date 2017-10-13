@@ -87,9 +87,9 @@ org.freedesktop.ratbag1.Device
         :type: au
         :flags: read-only, constant
 
-        The capabilities supported by this device. see `enum
-        ratbag_device_capability` in libratbag-enums.h for the list of permissible
-        capabilities.
+        The capabilities supported by this device. see
+        :ref:ratbag_device_capability in libratbag-enums.h for the list of
+        permissible capabilities.
 
 
     .. js:attribute:: Svg
