@@ -228,7 +228,8 @@ hidpp10_request_command(struct hidpp10_device *dev, union hidpp10_message *msg)
 				read_buffer.msg.device_idx,
 				hidpp10_errors[hidpp_err] ? hidpp10_errors[hidpp_err] : "Undocumented error code",
 				hidpp_err);
-			break;
+			ret = -EINVAL;
+			goto out_err;
 		}
 	} while (ret > 0);
 
@@ -238,13 +239,11 @@ hidpp10_request_command(struct hidpp10_device *dev, union hidpp10_message *msg)
 		goto out_err;
 	}
 
-	if (!hidpp_err) {
-		hidpp_log_buf_raw(&dev->base, "  received: ", read_buffer.data, ret);
-		/* copy the answer for the caller */
-		*msg = read_buffer;
-	}
+	hidpp_log_buf_raw(&dev->base, "  received: ", read_buffer.data, ret);
+	/* copy the answer for the caller */
+	*msg = read_buffer;
 
-	ret = hidpp_err;
+	ret = 0;
 
 out_err:
 	return ret;
