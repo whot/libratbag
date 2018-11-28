@@ -1998,10 +1998,9 @@ hidpp20_onboard_profiles_read_macro(struct hidpp20_device *device,
 			page = macro[index].jump.page;
 			offset = macro[index].jump.offset;
 			mem_index = offset;
-			/* no need to store the jump in memory */
-			index--;
 			/* force memory fetching */
 			rc = -ENOMEM;
+			/* no need to store the jump in memory */
 		} else {
 			index++;
 		}
