@@ -246,6 +246,7 @@ hidpp10_request_command(struct hidpp10_device *dev, union hidpp10_message *msg)
 	ret = 0;
 
 out_err:
+	assert(ret <= 0);
 	return ret;
 }
 /* -------------------------------------------------------------------------- */
@@ -1145,6 +1146,7 @@ hidpp10_onboard_profiles_read_macro(struct hidpp10_device *device,
 out_err:
 	free(macro);
 
+	assert(rc < 0);
 	return rc;
 }
 
@@ -2332,6 +2334,7 @@ hidpp10_hot_request_command(struct hidpp10_device *dev, uint8_t data[LONG_MESSAG
 	ret = 0;
 
 out_err:
+	assert(ret <= 0);
 	return ret;
 }
 
