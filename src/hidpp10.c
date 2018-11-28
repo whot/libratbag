@@ -1460,7 +1460,7 @@ hidpp10_read_profile(struct hidpp10_device *dev, uint8_t number)
 			long_clear_bit(&pages, page);
 		}
 
-		page = ffsl(pages) - 1;
+		page = ffsl(pages) - 1; // ignore_clang_sa_uninitialized
 		profile->page = page;
 	}
 
