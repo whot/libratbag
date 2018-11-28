@@ -2303,7 +2303,7 @@ hidpp20_onboard_profiles_parse_profile(struct hidpp20_device *device,
 						  profiles_list->sector_size,
 						  data);
 	if (rc < 0)
-		return rc;
+		return rc; // ignore_clang_sa_mem_leak
 
 	if (check_crc) {
 		if (!hidpp20_onboard_profiles_is_sector_valid(device,

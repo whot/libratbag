@@ -1413,7 +1413,7 @@ hidpp10_profile_set_names(struct hidpp10_device *dev, struct hidpp10_profile *pr
 static int
 hidpp10_read_profile(struct hidpp10_device *dev, uint8_t number)
 {
-	uint8_t page_data[HIDPP10_PAGE_SIZE];
+	uint8_t page_data[HIDPP10_PAGE_SIZE] = {0};
 	union _hidpp10_profile_data *data = (union _hidpp10_profile_data *)page_data;
 	struct _hidpp10_profile_500 *p500 = &data->profile_500;
 	struct _hidpp10_profile_700 *p700 = &data->profile_700;

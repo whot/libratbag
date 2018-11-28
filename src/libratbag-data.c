@@ -399,7 +399,7 @@ file_data_matches(struct ratbag *ratbag,
 	match_strv = g_key_file_get_string_list(keyfile, GROUP_DEVICE, "DeviceMatch", NULL, NULL);
 	if (!match_strv) {
 		log_error(ratbag, "Missing DeviceMatch in %s\n", basename(path));
-		return false;
+		return false; // ignore_clang_sa_mem_leak
 	}
 
 	if (!match(id, match_strv))
@@ -415,7 +415,7 @@ file_data_matches(struct ratbag *ratbag,
 	data->driver = g_key_file_get_string(keyfile, GROUP_DEVICE, "Driver", NULL);
 	if (!data->driver) {
 		log_error(ratbag, "Missing Driver in %s\n", basename(path));
-		return false;
+		return false; // ignore_clang_sa_mem_leak
 	} else {
 		const struct driver_map *map;
 
@@ -432,7 +432,7 @@ file_data_matches(struct ratbag *ratbag,
 		if (data->drivertype == NONE) {
 			log_error(ratbag, "Unknown driver %s in %s\n",
 				  data->driver, basename(path));
-			return false;
+			return false; // ignore_clang_sa_mem_leak
 		}
 	}
 
@@ -441,7 +441,7 @@ file_data_matches(struct ratbag *ratbag,
 	ledtypes_strv = g_key_file_get_string_list(keyfile, GROUP_DEVICE, "LedTypes", NULL, NULL);
 	if (parse_ledtypes(ledtypes_strv, data->led_types, ARRAY_LENGTH(data->led_types)) < 0) {
 		log_error(ratbag, "Invalid LedTypes string in '%s'\n", basename(path));
-		return false;
+		return false; // ignore_clang_sa_mem_leak
 	}
 
 	*data_out = data;
