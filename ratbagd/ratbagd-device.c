@@ -56,36 +56,6 @@ struct ratbagd_device {
 #define ratbagd_device_from_node(_ptr) \
 		rbnode_of((_ptr), struct ratbagd_device, node)
 
-static int ratbagd_device_find_profile(sd_bus *bus,
-				       const char *path,
-				       const char *interface,
-				       void *userdata,
-				       void **found,
-				       sd_bus_error *error)
-{
-	_cleanup_(freep) char *name = NULL;
-	struct ratbagd_device *device = userdata;
-	unsigned int index = 0;
-	int r;
-
-	r = sd_bus_path_decode_many(path,
-				    RATBAGD_OBJ_ROOT "/profile/%/p%",
-				    NULL,
-				    &name);
-	if (r <= 0)
-		return r;
-
-	r = safe_atou(name, &index);
-	if (r < 0)
-		return 0;
-
-	if (index >= device->n_profiles || !device->profiles[index])
-		return 0;
-
-	*found = device->profiles[index];
-	return 1;
-}
-
 static int ratbagd_device_list_profiles(sd_bus *bus,
 					const char *path,
 					void *userdata,
@@ -266,7 +236,8 @@ int ratbagd_device_new(struct ratbagd_device **out,
 		if (!profile)
 			continue;
 
-		r = ratbagd_profile_new(&device->profiles[i],
+		r = ratbagd_profile_new(ctx->bus,
+					&device->profiles[i],
 					device,
 					profile,
 					i);
@@ -384,21 +355,12 @@ void ratbagd_device_link(struct ratbagd_device *device)
 	r = sd_bus_path_encode_many(&prefix,
 				    RATBAGD_OBJ_ROOT "/profile/%",
 				    device->sysname);
-	if (r >= 0) {
-		r = sd_bus_add_fallback_vtable(device->ctx->bus,
-					       &device->profile_vtable_slot,
+	if (r >= 0)
+		r = sd_bus_add_node_enumerator(device->ctx->bus,
+					       &device->profile_enum_slot,
 					       prefix,
-					       RATBAGD_NAME_ROOT ".Profile",
-					       ratbagd_profile_vtable,
-					       ratbagd_device_find_profile,
+					       ratbagd_device_list_profiles,
 					       device);
-		if (r >= 0)
-			r = sd_bus_add_node_enumerator(device->ctx->bus,
-						       &device->profile_enum_slot,
-						       prefix,
-						       ratbagd_device_list_profiles,
-						       device);
-	}
 	if (r < 0) {
 		errno = -r;
 		log_error("%s: failed to register profile interfaces: %m\n",

@@ -45,6 +45,8 @@ struct ratbagd_profile {
 	struct ratbag_profile *lib_profile;
 	unsigned int index;
 	char *path;
+	sd_bus_vtable *vtable;
+	sd_bus_slot *vtable_slot;
 
 	sd_bus_slot *resolution_vtable_slot;
 	sd_bus_slot *resolution_enum_slot;
@@ -525,32 +527,57 @@ ratbagd_profile_set_report_rate(sd_bus *bus,
 	return 0;
 }
 
-const sd_bus_vtable ratbagd_profile_vtable[] = {
-	SD_BUS_VTABLE_START(0),
-	SD_BUS_WRITABLE_PROPERTY("Name", "s",
-				 ratbagd_profile_get_name,
-				 ratbagd_profile_set_name, 0,
-				 SD_BUS_VTABLE_UNPRIVILEGED|SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-	SD_BUS_WRITABLE_PROPERTY("Disabled", "b",
-				 ratbagd_profile_is_disabled,
-				 ratbagd_profile_set_disabled, 0,
-				 SD_BUS_VTABLE_UNPRIVILEGED|SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-	SD_BUS_PROPERTY("Index", "u", NULL, offsetof(struct ratbagd_profile, index), SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("Capabilities", "au", ratbagd_profile_get_capabilities, 0, SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("Resolutions", "ao", ratbagd_profile_get_resolutions, 0, 0),
-	SD_BUS_PROPERTY("Buttons", "ao", ratbagd_profile_get_buttons, 0, 0),
-	SD_BUS_PROPERTY("Leds", "ao", ratbagd_profile_get_leds, 0, 0),
-	SD_BUS_PROPERTY("IsActive", "b", ratbagd_profile_is_active, 0, SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-	SD_BUS_WRITABLE_PROPERTY("ReportRate", "u",
-				 ratbagd_profile_get_report_rate,
-				 ratbagd_profile_set_report_rate, 0,
-				 SD_BUS_VTABLE_UNPRIVILEGED|SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-	SD_BUS_PROPERTY("ReportRates", "au", ratbagd_profile_get_report_rates, 0, SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_METHOD("SetActive", "", "u", ratbagd_profile_set_active, SD_BUS_VTABLE_UNPRIVILEGED),
-	SD_BUS_VTABLE_END,
-};
+static sd_bus_vtable *make_vtable(struct ratbag_profile *profile)
+{
+	/* Fixed DBus interface all profiles have available */
+	const sd_bus_vtable profile_vtable[] = {
+		SD_BUS_VTABLE_START(0),
+		SD_BUS_PROPERTY("Index", "u", NULL, offsetof(struct ratbagd_profile, index), SD_BUS_VTABLE_PROPERTY_CONST),
 
-int ratbagd_profile_new(struct ratbagd_profile **out,
+		SD_BUS_PROPERTY("Capabilities", "au", ratbagd_profile_get_capabilities, 0, SD_BUS_VTABLE_PROPERTY_CONST),
+		SD_BUS_PROPERTY("Resolutions", "ao", ratbagd_profile_get_resolutions, 0, 0),
+		SD_BUS_PROPERTY("Buttons", "ao", ratbagd_profile_get_buttons, 0, 0),
+		SD_BUS_PROPERTY("Leds", "ao", ratbagd_profile_get_leds, 0, 0),
+		SD_BUS_PROPERTY("IsActive", "b", ratbagd_profile_is_active, 0, SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
+		SD_BUS_WRITABLE_PROPERTY("ReportRate", "u",
+					 ratbagd_profile_get_report_rate,
+					 ratbagd_profile_set_report_rate, 0,
+					 SD_BUS_VTABLE_UNPRIVILEGED|SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
+		SD_BUS_PROPERTY("ReportRates", "au", ratbagd_profile_get_report_rates, 0, SD_BUS_VTABLE_PROPERTY_CONST),
+		SD_BUS_METHOD("SetActive", "", "u", ratbagd_profile_set_active, SD_BUS_VTABLE_UNPRIVILEGED),
+	};
+	unsigned int idx = ARRAY_LENGTH(profile_vtable);
+	sd_bus_vtable *vtable = zalloc(32 * sizeof(sd_bus_vtable));
+
+	memcpy(vtable, profile_vtable, sizeof(profile_vtable));
+
+	if (ratbag_profile_get_name(profile) != NULL) {
+		vtable_add(vtable, idx, SD_BUS_WRITABLE_PROPERTY("Name", "s",
+						 ratbagd_profile_get_name,
+						 ratbagd_profile_set_name, 0,
+						 SD_BUS_VTABLE_UNPRIVILEGED|SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE));
+	}
+
+	if (ratbag_profile_has_capability(profile, RATBAG_PROFILE_CAP_DISABLE)) {
+		vtable_add(vtable, idx, SD_BUS_WRITABLE_PROPERTY("Disabled", "b",
+					 ratbagd_profile_is_disabled,
+					 ratbagd_profile_set_disabled, 0,
+					 SD_BUS_VTABLE_UNPRIVILEGED|SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE));
+	}
+
+	vtable_add(vtable, idx, SD_BUS_VTABLE_END);
+
+	assert(idx < 32);
+
+	vtable = realloc(vtable, idx * sizeof(*vtable));
+	assert(vtable);
+
+	return vtable;
+}
+
+
+int ratbagd_profile_new(sd_bus *bus,
+			struct ratbagd_profile **out,
 			struct ratbagd_device *device,
 			struct ratbag_profile *lib_profile,
 			unsigned int index)
@@ -577,6 +604,17 @@ int ratbagd_profile_new(struct ratbagd_profile **out,
 				    RATBAGD_OBJ_ROOT "/profile/%/%",
 				    ratbagd_device_get_sysname(device),
 				    index_buffer);
+	if (r < 0)
+		return r;
+
+
+	profile->vtable = make_vtable(lib_profile);
+	r = sd_bus_add_object_vtable(bus,
+				     &profile->vtable_slot,
+				     profile->path,
+				     RATBAGD_NAME_ROOT ".Profile",
+				     profile->vtable,
+				     profile);
 	if (r < 0)
 		return r;
 
@@ -652,12 +690,14 @@ struct ratbagd_profile *ratbagd_profile_free(struct ratbagd_profile *profile)
 	if (!profile)
 		return NULL;
 
+	profile->vtable_slot = sd_bus_slot_unref(profile->vtable_slot);
 	profile->resolution_vtable_slot = sd_bus_slot_unref(profile->resolution_vtable_slot);
 	profile->resolution_enum_slot = sd_bus_slot_unref(profile->resolution_enum_slot);
 	profile->button_vtable_slot = sd_bus_slot_unref(profile->button_vtable_slot);
 	profile->button_enum_slot = sd_bus_slot_unref(profile->button_enum_slot);
 	profile->led_vtable_slot = sd_bus_slot_unref(profile->led_vtable_slot);
 	profile->led_enum_slot = sd_bus_slot_unref(profile->led_enum_slot);
+	mfree(profile->vtable);
 
 	for (i = 0; i< profile->n_leds; ++i)
 		ratbagd_led_free(profile->leds[i]);

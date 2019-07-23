@@ -29,6 +29,12 @@ must be prepared to receive a :func:`org.freedesktop.ratbag1.Device.Resync
 Notes on the DBus API
 ---------------------
 
+The DBus API has a number of **optional** items. Where a property or method
+is not available, this indicates that the underlying device does not support
+reading and writing that property. For example, a profile without a Name
+property has no writable name on the device. Optional APIs are documented as
+such below.
+
 For easier debugging, objects paths are constructed from the device. e.g.
 ``/org/freedesktop/ratbag/button/event5/p0/b10`` is the button interface for
 button 10 on profile 0 on event5. The naming is subject to change. Do not
@@ -188,17 +194,19 @@ org.freedesktop.ratbag1.Profile
 .. attribute:: Name
 
         :type: s
-        :flags: read-write, mutable
+        :flags: read-write, mutable, optional
 
-        The name of this profile. If the name is the empty string, the
+        The name of this profile. If this property is missing, the
         profile name cannot be changed.
 
 .. attribute:: Disabled
 
         :type: b
-        :flags: read-write, mutable
+        :flags: read-write, mutable, optional
 
-        True if this is the profile is disabled, false otherwise.
+        True if this is the profile is disabled, false otherwise. If this
+        property is missing, the device does not support disabling profiles
+        and all profiles should be assumed to be enabled.
 
         Note that a disabled profile might not have correct bindings, so it's
         a good thing to rebind everything before calling

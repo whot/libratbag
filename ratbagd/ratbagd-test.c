@@ -123,6 +123,7 @@ static const struct ratbag_test_device ratbagd_test_device_descr = {
 			.name = "test profile 2",
 		},
 		{
+			.caps = {RATBAG_PROFILE_CAP_DISABLE},
 			.buttons = {
 				{ .button_type = RATBAG_BUTTON_TYPE_LEFT,
 				  .action_type = RATBAG_BUTTON_ACTION_TYPE_SPECIAL,
@@ -166,6 +167,7 @@ static const struct ratbag_test_device ratbagd_test_device_descr = {
 			.dflt = false,
 		},
 		{
+			.caps = {RATBAG_PROFILE_CAP_DISABLE},
 			.disabled = true,
 		},
 	},

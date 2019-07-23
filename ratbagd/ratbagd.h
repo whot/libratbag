@@ -58,6 +58,13 @@ void log_info(const char *fmt, ...) _printf_(1, 2);
 void log_verbose(const char *fmt, ...) _printf_(1, 2);
 void log_error(const char *fmt, ...) _printf_(1, 2);
 
+/* the SD_BUS_VTABLE API is designed for static vtables only so we
+ * have to use a macro to make this slightly saner to use.
+ * Add an entry to an sd_bus_vtable array at the given index and advances
+ * the index by one.
+ */
+#define vtable_add(vtable_, idx_, ...) { sd_bus_vtable e_ = __VA_ARGS__; (vtable_)[(idx_)++] = e_; }
+
 #define CHECK_CALL(_call) \
 	do { \
 		int _r = _call; \
@@ -72,9 +79,8 @@ void log_error(const char *fmt, ...) _printf_(1, 2);
  * Profiles
  */
 
-extern const sd_bus_vtable ratbagd_profile_vtable[];
-
-int ratbagd_profile_new(struct ratbagd_profile **out,
+int ratbagd_profile_new(sd_bus *bus,
+			struct ratbagd_profile **out,
 			struct ratbagd_device *device,
 			struct ratbag_profile *lib_profile,
 			unsigned int index);
