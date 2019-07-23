@@ -124,9 +124,8 @@ DEFINE_TRIVIAL_CLEANUP_FUNC(struct ratbagd_profile *, ratbagd_profile_free);
 /*
  * Resolutions
  */
-extern const sd_bus_vtable ratbagd_resolution_vtable[];
-
-int ratbagd_resolution_new(struct ratbagd_resolution **out,
+int ratbagd_resolution_new(sd_bus *bus,
+			   struct ratbagd_resolution **out,
 			   struct ratbagd_device *device,
 			   struct ratbagd_profile *profile,
 			   struct ratbag_resolution *lib_resolution,

@@ -54,7 +54,6 @@ struct ratbagd_profile {
 	sd_bus_vtable *vtable;
 	sd_bus_slot *vtable_slot;
 
-	sd_bus_slot *resolution_vtable_slot;
 	sd_bus_slot *resolution_enum_slot;
 	unsigned int n_resolutions;
 	struct ratbagd_resolution **resolutions;
@@ -71,37 +70,6 @@ struct ratbagd_profile {
 
 	enum profile_reliability reliability;
 };
-
-static int ratbagd_profile_find_resolution(sd_bus *bus,
-					   const char *path,
-					   const char *interface,
-					   void *userdata,
-					   void **found,
-					   sd_bus_error *error)
-{
-	_cleanup_(freep) char *name = NULL;
-	struct ratbagd_profile *profile = userdata;
-	unsigned int index = 0;
-	int r;
-
-	r = sd_bus_path_decode_many(path,
-				    RATBAGD_OBJ_ROOT "/resolution/%/p%/r%",
-				    NULL,
-				    NULL,
-				    &name);
-	if (r <= 0)
-		return r;
-
-	r = safe_atou(name, &index);
-	if (r < 0)
-		return 0;
-
-	if (index >= profile->n_resolutions || !profile->resolutions[index])
-		return 0;
-
-	*found = profile->resolutions[index];
-	return 1;
-}
 
 static int ratbagd_profile_get_resolutions(sd_bus *bus,
 					   const char *path,
@@ -678,7 +646,8 @@ int ratbagd_profile_new(sd_bus *bus,
 		if (!resolution)
 			continue;
 
-		r = ratbagd_resolution_new(&profile->resolutions[i],
+		r = ratbagd_resolution_new(bus,
+					   &profile->resolutions[i],
 					   device,
 					   profile,
 					   resolution,
@@ -737,7 +706,6 @@ struct ratbagd_profile *ratbagd_profile_free(struct ratbagd_profile *profile)
 		return NULL;
 
 	profile->vtable_slot = sd_bus_slot_unref(profile->vtable_slot);
-	profile->resolution_vtable_slot = sd_bus_slot_unref(profile->resolution_vtable_slot);
 	profile->resolution_enum_slot = sd_bus_slot_unref(profile->resolution_enum_slot);
 	profile->button_vtable_slot = sd_bus_slot_unref(profile->button_vtable_slot);
 	profile->button_enum_slot = sd_bus_slot_unref(profile->button_enum_slot);
@@ -818,19 +786,11 @@ int ratbagd_profile_register_resolutions(struct sd_bus *bus,
 				    index_buffer);
 
 	if (r >= 0) {
-		r = sd_bus_add_fallback_vtable(bus,
-					       &profile->resolution_vtable_slot,
+		r = sd_bus_add_node_enumerator(bus,
+					       &profile->resolution_enum_slot,
 					       prefix,
-					       RATBAGD_NAME_ROOT ".Resolution",
-					       ratbagd_resolution_vtable,
-					       ratbagd_profile_find_resolution,
+					       ratbagd_profile_list_resolutions,
 					       profile);
-		if (r >= 0)
-			r = sd_bus_add_node_enumerator(bus,
-						       &profile->resolution_enum_slot,
-						       prefix,
-						       ratbagd_profile_list_resolutions,
-						       profile);
 	}
 	if (r < 0) {
 		errno = -r;

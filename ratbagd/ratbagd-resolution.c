@@ -43,6 +43,8 @@ struct ratbagd_resolution {
 	struct ratbag_resolution *lib_resolution;
 	unsigned int index;
 	char *path;
+	sd_bus_vtable *vtable;
+	sd_bus_slot *vtable_slot;
 };
 
 int ratbagd_resolution_resync(sd_bus *bus,
@@ -264,22 +266,38 @@ ratbagd_resolution_set_resolution(sd_bus *bus,
 	return 0;
 }
 
-const sd_bus_vtable ratbagd_resolution_vtable[] = {
-	SD_BUS_VTABLE_START(0),
-	SD_BUS_PROPERTY("Index", "u", NULL, offsetof(struct ratbagd_resolution, index), SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_PROPERTY("IsActive", "b", ratbagd_resolution_is_active, 0, SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-	SD_BUS_PROPERTY("IsDefault", "b", ratbagd_resolution_is_default, 0, SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-	SD_BUS_WRITABLE_PROPERTY("Resolution", "v",
-				 ratbagd_resolution_get_resolution,
-				 ratbagd_resolution_set_resolution, 0,
-				 SD_BUS_VTABLE_UNPRIVILEGED|SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-	SD_BUS_PROPERTY("Resolutions", "au", ratbagd_resolution_get_resolutions, 0, SD_BUS_VTABLE_PROPERTY_CONST),
-	SD_BUS_METHOD("SetActive", "", "u", ratbagd_resolution_set_active, SD_BUS_VTABLE_UNPRIVILEGED),
-	SD_BUS_METHOD("SetDefault", "", "u", ratbagd_resolution_set_default, SD_BUS_VTABLE_UNPRIVILEGED),
-	SD_BUS_VTABLE_END,
-};
+static sd_bus_vtable *make_vtable(struct ratbag_resolution *resolution)
+{
+	/* Fixed DBus interface all resolutions have available */
+	const sd_bus_vtable resolution_vtable[] = {
+		SD_BUS_VTABLE_START(0),
+		SD_BUS_PROPERTY("Index", "u", NULL, offsetof(struct ratbagd_resolution, index), SD_BUS_VTABLE_PROPERTY_CONST),
+		SD_BUS_PROPERTY("IsActive", "b", ratbagd_resolution_is_active, 0, SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
+		SD_BUS_PROPERTY("IsDefault", "b", ratbagd_resolution_is_default, 0, SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
+		SD_BUS_WRITABLE_PROPERTY("Resolution", "v",
+					 ratbagd_resolution_get_resolution,
+					 ratbagd_resolution_set_resolution, 0,
+					 SD_BUS_VTABLE_UNPRIVILEGED|SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
+		SD_BUS_PROPERTY("Resolutions", "au", ratbagd_resolution_get_resolutions, 0, SD_BUS_VTABLE_PROPERTY_CONST),
+		SD_BUS_METHOD("SetActive", "", "u", ratbagd_resolution_set_active, SD_BUS_VTABLE_UNPRIVILEGED),
+		SD_BUS_METHOD("SetDefault", "", "u", ratbagd_resolution_set_default, SD_BUS_VTABLE_UNPRIVILEGED),
+	};
 
-int ratbagd_resolution_new(struct ratbagd_resolution **out,
+	unsigned int idx = ARRAY_LENGTH(resolution_vtable);
+	sd_bus_vtable *vtable = zalloc(32 * sizeof(sd_bus_vtable));
+
+	memcpy(vtable, resolution_vtable, sizeof(resolution_vtable));
+
+	vtable_add(vtable, idx, SD_BUS_VTABLE_END);
+
+	vtable = realloc(vtable, idx * sizeof(*vtable));
+	assert(vtable);
+
+	return vtable;
+}
+
+int ratbagd_resolution_new(sd_bus *bus,
+			   struct ratbagd_resolution **out,
 			   struct ratbagd_device *device,
 			   struct ratbagd_profile *profile,
 			   struct ratbag_resolution *lib_resolution,
@@ -312,6 +330,16 @@ int ratbagd_resolution_new(struct ratbagd_resolution **out,
 	if (r < 0)
 		return r;
 
+	resolution->vtable = make_vtable(lib_resolution);
+	r = sd_bus_add_object_vtable(bus,
+				     &resolution->vtable_slot,
+				     resolution->path,
+				     RATBAGD_NAME_ROOT ".Resolution",
+				     resolution->vtable,
+				     resolution);
+	if (r < 0)
+		return r;
+
 	*out = resolution;
 	resolution = NULL;
 	return 0;
@@ -330,6 +358,8 @@ struct ratbagd_resolution *ratbagd_resolution_free(struct ratbagd_resolution *re
 
 	resolution->path = mfree(resolution->path);
 	resolution->lib_resolution = ratbag_resolution_unref(resolution->lib_resolution);
+	resolution->vtable_slot = sd_bus_slot_unref(resolution->vtable_slot);
+	mfree(resolution->vtable);
 
 	return mfree(resolution);
 }
