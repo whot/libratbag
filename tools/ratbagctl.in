@@ -443,11 +443,14 @@ def func_profile_get(r, args):
 
 def func_profile_name_get(r, args):
     p, d = find_profile(r, args)
-    # See https://github.com/libratbag/libratbag/issues/617
-    # ratbag converts to ascii, so this has no real effect there, but
-    # ratbag-command may still have a non-ascii string.
-    string = bytes(p.name, 'utf-8', 'ignore')
-    print(string.decode('utf-8'))
+    if p.name is None:
+        print('n/a')
+    else:
+        # See https://github.com/libratbag/libratbag/issues/617
+        # ratbag converts to ascii, so this has no real effect there, but
+        # ratbag-command may still have a non-ascii string.
+        string = bytes(p.name, 'utf-8', 'ignore')
+        print(string.decode('utf-8'))
 
 
 def func_profile_name_set(r, args):
