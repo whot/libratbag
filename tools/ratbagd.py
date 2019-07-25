@@ -364,11 +364,6 @@ class RatbagdDevice(_RatbagdDBus):
 class RatbagdProfile(_RatbagdDBus):
     """Represents a ratbagd profile."""
 
-    CAP_WRITABLE_NAME = 100
-    CAP_SET_DEFAULT = 101
-    CAP_DISABLE = 102
-    CAP_WRITE_ONLY = 103
-
     def __init__(self, object_path):
         super().__init__("Profile", object_path)
         self._dirty = False
@@ -404,16 +399,6 @@ class RatbagdProfile(_RatbagdDBus):
                 self._active = active
                 self.notify("is-active")
                 self._on_obj_notify(None, None)
-
-    @GObject.Property
-    def capabilities(self):
-        """The capabilities of this profile as an array. Capabilities not
-        present on the profile are not in the list. Thus use e.g.
-
-        if RatbagdProfile.CAP_WRITABLE_NAME is in profile.capabilities:
-            do something
-        """
-        return self._get_dbus_property("Capabilities") or []
 
     @GObject.Property
     def name(self):
