@@ -1033,6 +1033,7 @@ ratbag_resolution_has_capability(struct ratbag_resolution *resolution,
 {
 	switch (cap) {
 	case RATBAG_RESOLUTION_CAP_SEPARATE_XY_RESOLUTION:
+	case RATBAG_RESOLUTION_CAP_SET_DEFAULT:
 		break;
 	default:
 		return 0;

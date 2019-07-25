@@ -425,17 +425,26 @@ def func_resolution_active_set(r, args):
 
 def func_resolution_default_get(r, args):
     p, d = find_profile(r, args)
-    for r in p.resolutions:
+
+    maybes = [r for r in p.resolutions if r.is_default is not None]
+    if not maybes:
+        print('device does not support default resolutions')
+        return
+
+    for r in maybes:
         if r.is_default:
-            break
+            print(r.index)
+            return
     else:
-        r = None
-    print(r.index)
+        print('no default resolution')
 
 
 def func_default_resolution_set(r, args):
     # FIXME: capabilities check?
     r, p, d = find_resolution(r, args)
+    if r.is_default is None:
+        print('This resolution cannot be set to default')
+        return
     r.set_default()
     commit(d, args)
 

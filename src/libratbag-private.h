@@ -569,7 +569,7 @@ static inline void
 ratbag_resolution_set_cap(struct ratbag_resolution *res,
 			  enum ratbag_resolution_capability cap)
 {
-	assert(cap <= RATBAG_RESOLUTION_CAP_SEPARATE_XY_RESOLUTION);
+	assert(cap <= RATBAG_RESOLUTION_CAP_SET_DEFAULT);
 
 	res->capabilities |= (1 << cap);
 }

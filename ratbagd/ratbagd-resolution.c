@@ -273,14 +273,12 @@ static sd_bus_vtable *make_vtable(struct ratbag_resolution *resolution)
 		SD_BUS_VTABLE_START(0),
 		SD_BUS_PROPERTY("Index", "u", NULL, offsetof(struct ratbagd_resolution, index), SD_BUS_VTABLE_PROPERTY_CONST),
 		SD_BUS_PROPERTY("IsActive", "b", ratbagd_resolution_is_active, 0, SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
-		SD_BUS_PROPERTY("IsDefault", "b", ratbagd_resolution_is_default, 0, SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
 		SD_BUS_WRITABLE_PROPERTY("Resolution", "v",
 					 ratbagd_resolution_get_resolution,
 					 ratbagd_resolution_set_resolution, 0,
 					 SD_BUS_VTABLE_UNPRIVILEGED|SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE),
 		SD_BUS_PROPERTY("Resolutions", "au", ratbagd_resolution_get_resolutions, 0, SD_BUS_VTABLE_PROPERTY_CONST),
 		SD_BUS_METHOD("SetActive", "", "u", ratbagd_resolution_set_active, SD_BUS_VTABLE_UNPRIVILEGED),
-		SD_BUS_METHOD("SetDefault", "", "u", ratbagd_resolution_set_default, SD_BUS_VTABLE_UNPRIVILEGED),
 	};
 
 	unsigned int idx = ARRAY_LENGTH(resolution_vtable);
@@ -288,7 +286,16 @@ static sd_bus_vtable *make_vtable(struct ratbag_resolution *resolution)
 
 	memcpy(vtable, resolution_vtable, sizeof(resolution_vtable));
 
+	if (ratbag_resolution_has_capability(resolution, RATBAG_RESOLUTION_CAP_SET_DEFAULT)) {
+		vtable_add(vtable, idx,
+			SD_BUS_PROPERTY("IsDefault", "b", ratbagd_resolution_is_default, 0, SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE));
+		vtable_add(vtable, idx,
+			SD_BUS_METHOD("SetDefault", "", "u", ratbagd_resolution_set_default, SD_BUS_VTABLE_UNPRIVILEGED));
+	}
+
 	vtable_add(vtable, idx, SD_BUS_VTABLE_END);
+
+	assert(idx < 32);
 
 	vtable = realloc(vtable, idx * sizeof(*vtable));
 	assert(vtable);

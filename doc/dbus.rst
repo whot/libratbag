@@ -315,11 +315,11 @@ org.freedesktop.ratbag1.Resolution
 .. attribute:: IsDefault
 
         :type: b
-        :flags: read-only, mutable
+        :flags: read-only, mutable, optional
 
         True if this is the currently default resolution, false
-        otherwise. If the device does not have the default
-        resolution capability, this property is always false.
+        otherwise. Where this property is missing, the device cannot set
+        the resolution as default resolution.
 
         Resolutions can only be set to default, but never to not
         default - at least one resolution must be default at all
@@ -360,7 +360,9 @@ org.freedesktop.ratbag1.Resolution
 
 .. function:: SetDefault() → ()
 
-        Set this resolution to be the default
+        Set this resolution to be the default. This method is optional and
+        does not exist, where the resolution cannot be set as default
+        resolution.
 
 .. function:: SetActive() → ()
 
