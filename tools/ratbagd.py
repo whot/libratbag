@@ -450,6 +450,12 @@ class RatbagdProfile(_RatbagdDBus):
         self._set_dbus_property("Disabled", "b", disabled)
 
     @GObject.Property
+    def unreliable(self):
+        """tells if the profile is unreliable, i.e. could not be loaded
+        from the device and has not yet been written."""
+        return self._get_dbus_property("Unreliable")
+
+    @GObject.Property
     def report_rate(self):
         """The report rate in Hz."""
         return self._get_dbus_property("ReportRate")

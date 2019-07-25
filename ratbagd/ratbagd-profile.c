@@ -40,6 +40,12 @@
 #include "shared-macro.h"
 #include "libratbag-util.h"
 
+enum profile_reliability {
+	RELIABILITY_STILL_UNKNOWN,
+	RELIABILITY_WRITTEN,
+	RELIABILITY_LOADED_FROM_DEVICE,
+};
+
 struct ratbagd_profile {
 	struct ratbagd_device *device;
 	struct ratbag_profile *lib_profile;
@@ -62,6 +68,8 @@ struct ratbagd_profile {
 	sd_bus_slot *led_enum_slot;
 	unsigned int n_leds;
 	struct ratbagd_led **leds;
+
+	enum profile_reliability reliability;
 };
 
 static int ratbagd_profile_find_resolution(sd_bus *bus,
@@ -348,6 +356,33 @@ ratbagd_profile_is_disabled(sd_bus *bus,
 }
 
 static int
+ratbagd_profile_is_unreliable(sd_bus *bus,
+			      const char *path,
+			      const char *interface,
+			      const char *property,
+			      sd_bus_message *reply,
+			      void *userdata,
+			      sd_bus_error *error)
+{
+	struct ratbagd_profile *profile = userdata;
+	int unreliable;
+
+	switch (profile->reliability) {
+	case RELIABILITY_STILL_UNKNOWN:
+		unreliable = true;
+		break;
+	case RELIABILITY_WRITTEN:
+	case RELIABILITY_LOADED_FROM_DEVICE:
+		unreliable = false;
+		break;
+	}
+
+	CHECK_CALL(sd_bus_message_append(reply, "b", unreliable));
+
+	return 0;
+}
+
+static int
 ratbagd_profile_set_name(sd_bus *bus,
 			 const char *path,
 			 const char *interface,
@@ -565,6 +600,12 @@ static sd_bus_vtable *make_vtable(struct ratbag_profile *profile)
 					 SD_BUS_VTABLE_UNPRIVILEGED|SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE));
 	}
 
+	if (ratbag_profile_has_capability(profile, RATBAG_PROFILE_CAP_WRITE_ONLY)) {
+		vtable_add(vtable, idx, SD_BUS_WRITABLE_PROPERTY("Unreliable", "b",
+					 ratbagd_profile_is_unreliable, 0, 0,
+					 SD_BUS_VTABLE_PROPERTY_EMITS_CHANGE));
+	}
+
 	vtable_add(vtable, idx, SD_BUS_VTABLE_END);
 
 	assert(idx < 32);
@@ -598,6 +639,11 @@ int ratbagd_profile_new(sd_bus *bus,
 	profile->device = device;
 	profile->lib_profile = lib_profile;
 	profile->index = index;
+	if (ratbag_profile_has_capability(lib_profile, RATBAG_PROFILE_CAP_WRITE_ONLY)) {
+		profile->reliability = RELIABILITY_STILL_UNKNOWN;
+	} else {
+		profile->reliability = RELIABILITY_LOADED_FROM_DEVICE;
+	}
 
 	sprintf(index_buffer, "p%u", index);
 	r = sd_bus_path_encode_many(&profile->path,
@@ -981,5 +1027,20 @@ int ratbagd_profile_resync(sd_bus *bus,
 					      "Buttons",
 					      "Leds",
 					      "IsActive",
+					      NULL);
+}
+
+int ratbagd_profile_notify_commit(sd_bus *bus, struct ratbagd_profile *profile)
+{
+	/* we have a successful commit() to the device for this profile,
+	 * let's switch the unreliable state where appropriate */
+	if (profile->reliability != RELIABILITY_STILL_UNKNOWN)
+		return 0;
+
+	profile->reliability = RELIABILITY_WRITTEN;
+	return sd_bus_emit_properties_changed(bus,
+					      profile->path,
+					      RATBAGD_NAME_ROOT ".Profile",
+					      "Unreliable",
 					      NULL);
 }

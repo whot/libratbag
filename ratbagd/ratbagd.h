@@ -116,6 +116,9 @@ int ratbagd_for_each_led_signal(sd_bus *bus,
 					    struct ratbagd_led *led));
 int ratbagd_profile_resync(sd_bus *bus, struct ratbagd_profile *profile);
 
+int ratbagd_profile_notify_commit(sd_bus *bus, struct ratbagd_profile *profile);
+
+
 DEFINE_TRIVIAL_CLEANUP_FUNC(struct ratbagd_profile *, ratbagd_profile_free);
 
 /*

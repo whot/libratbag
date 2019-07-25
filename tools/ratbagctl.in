@@ -187,6 +187,9 @@ def print_profile(d, p, level):
                                                        " (disabled)" if p.disabled else "",
                                                        " (active)" if p.is_active else ""))
 
+    if p.unreliable:
+        print(" " * level + "***Profile data cannot be loaded from device and is unreliable***")
+
     if not p.disabled:
         print(" " * level + "Name: {}".format(p.name or 'n/a'))
         print(" " * level + "Report Rate: {}Hz".format(p.report_rate))

@@ -140,8 +140,12 @@ static void ratbagd_device_commit_pending(void *data)
 	int r;
 
 	r = ratbag_device_commit(device->lib_device);
-	if (r < 0)
+	if (r < 0) {
 		ratbagd_device_resync(device, device->ctx->bus);
+	} else {
+		ratbagd_for_each_profile_signal(device->ctx->bus, device,
+						ratbagd_profile_notify_commit);
+	}
 }
 
 static int ratbagd_device_commit(sd_bus_message *m,

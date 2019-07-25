@@ -212,6 +212,19 @@ org.freedesktop.ratbag1.Profile
         a good thing to rebind everything before calling
         :func:`Commit`.
 
+.. attribute:: Unreliable
+        :type: b
+        :flags: read-only, optional
+
+        True if this profile cannot be read from the hardware and all data
+	in it is likely to be incorrect. When this property is True, a
+	client should load the initial settings immediately into this
+	device. A successful write will change this property to False, the
+	data exported by ratbagd is now correct.
+
+	Where the property does not exist, the profile information is read
+	from the hardware.
+
 .. attribute:: IsActive
 
         :type: b
