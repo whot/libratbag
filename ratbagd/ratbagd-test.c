@@ -40,7 +40,7 @@ static const struct ratbag_test_device ratbagd_test_device_descr = {
 	.num_buttons = 4,
 	.num_leds = 3,
 	.profiles = {
-		{
+		{ /* profile 0 */
 			.name = NULL,
 			.buttons = {
 				{ .button_type = RATBAG_BUTTON_TYPE_LEFT,
@@ -98,7 +98,7 @@ static const struct ratbag_test_device ratbagd_test_device_descr = {
 				}
 			},
 		},
-		{
+		{ /* profile 1 */
 			.buttons = {
 				{ .action_type = RATBAG_BUTTON_ACTION_TYPE_KEY,
 				  .key = 4 },
@@ -122,7 +122,7 @@ static const struct ratbag_test_device ratbagd_test_device_descr = {
 			.dflt = true,
 			.name = "test profile 2",
 		},
-		{
+		{ /* profile 2 */
 			.caps = {RATBAG_PROFILE_CAP_DISABLE},
 			.buttons = {
 				{ .button_type = RATBAG_BUTTON_TYPE_LEFT,
@@ -166,7 +166,7 @@ static const struct ratbag_test_device ratbagd_test_device_descr = {
 			.active = false,
 			.dflt = false,
 		},
-		{
+		{ /* profile 3 */
 			.caps = {RATBAG_PROFILE_CAP_DISABLE},
 			.disabled = true,
 		},
